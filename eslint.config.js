@@ -10,7 +10,12 @@ import globals from "globals";
 export default tseslint.config(
   {
     // These files are auto-generated, so we should not do linting on them
-    ignores: [".react-router/", "app/components/ui/"],
+    ignores: [
+      "build/",
+      ".react-router/",
+      "app/components/ui/",
+      "app/hooks/use-toast.ts",
+    ],
   },
   eslint.configs.recommended,
   tseslint.configs.strictTypeChecked,
@@ -36,10 +41,14 @@ export default tseslint.config(
   unicornPlugin.configs["flat/recommended"],
   {
     files: ["**/*.{js,mjs,cjs,jsx,mjsx,ts,tsx,mtsx}"],
+    // @ts-expect-error https://github.com/jsx-eslint/eslint-plugin-react/issues/3878
     ...reactPlugin.configs.flat.recommended,
+    // @ts-expect-error https://github.com/jsx-eslint/eslint-plugin-react/issues/3878
     ...reactPlugin.configs.flat["jsx-runtime"],
     languageOptions: {
+      // @ts-expect-error https://github.com/jsx-eslint/eslint-plugin-react/issues/3878
       ...reactPlugin.configs.flat.recommended.languageOptions,
+      // @ts-expect-error https://github.com/jsx-eslint/eslint-plugin-react/issues/3878
       ...reactPlugin.configs.flat["jsx-runtime"].languageOptions,
       globals: {
         ...globals.serviceworker,
