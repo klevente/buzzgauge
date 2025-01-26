@@ -56,8 +56,10 @@ export default tseslint.config(
       },
     },
   },
+  prettierConfig,
   {
     rules: {
+      curly: ["error", "all"],
       "@typescript-eslint/consistent-type-definitions": ["error", "type"],
       "no-empty-pattern": "off",
       "@typescript-eslint/no-non-null-assertion": "off",
@@ -73,7 +75,14 @@ export default tseslint.config(
           ignoreRestSiblings: true,
         },
       ],
+      "unicorn/prevent-abbreviations": [
+        "error",
+        {
+          replacements: {
+            props: false,
+          },
+        },
+      ],
     },
   },
-  prettierConfig,
 );
