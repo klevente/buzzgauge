@@ -19,7 +19,7 @@ import {
 } from "~/components/ui/table";
 import { Button } from "~/components/ui/button";
 import { Label } from "~/components/ui/label";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import {
   Dialog,
@@ -192,31 +192,11 @@ function estimateTimeUntilTarget(
   return ((currentBac - targetBac) / METABOLISM_RATE) * 60 * 60 * 1000;
 }
 
-const timeFormat = new Intl.DateTimeFormat("en-US", {
-  hour: "2-digit",
-  minute: "2-digit",
-  hour12: false,
-});
-const tickFormatter = (value: number) => timeFormat.format(new Date(value));
-
-// const labelFormatter = (value: string) => labelFormat.format(new Date(value));
-
-const soberTimeFormat = new Intl.DateTimeFormat("en-US", {
-  hour: "numeric",
-  minute: "numeric",
-  hour12: true,
-});
-
-const drinkLogTimeFormat = new Intl.DateTimeFormat("en-US", {
-  hour: "2-digit",
-  minute: "2-digit",
-  hour12: true,
-});
-
 export type UserSettings = {
   gender: Gender;
   weight: number;
   bacLimit: number;
+  timeFormat: "12h" | "24h";
 };
 
 // This would typically come from your backend/storage
@@ -224,6 +204,7 @@ const DEFAULT_SETTINGS: UserSettings = {
   gender: "male",
   weight: 75,
   bacLimit: 0.05,
+  timeFormat: "24h",
 };
 
 type DeleteDialogProps = {
@@ -343,6 +324,7 @@ export default function Home({}: Route.ComponentProps) {
         gender: parsed.gender ?? DEFAULT_SETTINGS.gender,
         weight: parsed.weight ?? DEFAULT_SETTINGS.weight,
         bacLimit: parsed.bacLimit ?? DEFAULT_SETTINGS.bacLimit,
+        timeFormat: parsed.timeFormat ?? DEFAULT_SETTINGS.timeFormat,
       };
     } catch {
       return DEFAULT_SETTINGS;
@@ -377,6 +359,42 @@ export default function Home({}: Route.ComponentProps) {
     [drinks, settings.gender, currentTime, settings.weight],
   );
 
+  // Create formatters based on settings
+  const timeFormatter = useMemo(
+    () =>
+      new Intl.DateTimeFormat("en-US", {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: settings.timeFormat === "12h",
+      }),
+    [settings.timeFormat],
+  );
+
+  const soberTimeFormatter = useMemo(
+    () =>
+      new Intl.DateTimeFormat("en-US", {
+        hour: "numeric",
+        minute: "numeric",
+        hour12: settings.timeFormat === "12h",
+      }),
+    [settings.timeFormat],
+  );
+
+  const drinkLogFormatter = useMemo(
+    () =>
+      new Intl.DateTimeFormat("en-US", {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: settings.timeFormat === "12h",
+      }),
+    [settings.timeFormat],
+  );
+
+  const tickFormatter = useCallback(
+    (value: number) => timeFormatter.format(new Date(value)),
+    [timeFormatter],
+  );
+
   // Memoize derived values
   const { isOverLimit, timeUntilSober, timeUntilLegal, soberTime, legalTime } =
     useMemo(() => {
@@ -387,18 +405,28 @@ export default function Home({}: Route.ComponentProps) {
         settings.bacLimit,
       );
 
+      // If BAC is 0 or below target, show 00:00 instead of formatting time
+      const formatTime = (ms: number) =>
+        ms <= 0 ? "00:00" : timeFormatter.format(new Date(ms));
+      const formatSoberTime = (ms: number) =>
+        ms <= 0
+          ? soberTimeFormatter.format(new Date())
+          : soberTimeFormatter.format(new Date(currentTime + ms));
+
       return {
         isOverLimit,
-        timeUntilSober: timeFormat.format(new Date(timeUntilSoberUnformatted)),
-        timeUntilLegal: timeFormat.format(new Date(timeUntilLegalUnformatted)),
-        soberTime: soberTimeFormat.format(
-          new Date(currentTime + timeUntilSoberUnformatted),
-        ),
-        legalTime: soberTimeFormat.format(
-          new Date(currentTime + timeUntilLegalUnformatted),
-        ),
+        timeUntilSober: formatTime(timeUntilSoberUnformatted),
+        timeUntilLegal: formatTime(timeUntilLegalUnformatted),
+        soberTime: formatSoberTime(timeUntilSoberUnformatted),
+        legalTime: formatSoberTime(timeUntilLegalUnformatted),
       };
-    }, [bac, settings.bacLimit, currentTime]);
+    }, [
+      bac,
+      settings.bacLimit,
+      currentTime,
+      timeFormatter,
+      soberTimeFormatter,
+    ]);
 
   // Memoize chart data
   const chartData = useMemo(
@@ -529,6 +557,24 @@ export default function Home({}: Route.ComponentProps) {
                       {settings.bacLimit.toFixed(2)}%
                     </span>
                   </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="timeFormat">Time Format</Label>
+                  <Select
+                    value={settings.timeFormat}
+                    onValueChange={(value: "12h" | "24h") => {
+                      handleSettingsChange({ timeFormat: value });
+                    }}
+                  >
+                    <SelectTrigger id="timeFormat">
+                      <SelectValue placeholder="Select time format" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="12h">12-hour (AM/PM)</SelectItem>
+                      <SelectItem value="24h">24-hour</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
               <DialogFooter className="flex flex-col gap-2 sm:flex-row sm:justify-between sm:gap-0">
@@ -796,7 +842,7 @@ export default function Home({}: Route.ComponentProps) {
                   {drinks.map((drink, index) => (
                     <TableRow key={index}>
                       <TableCell>
-                        {drinkLogTimeFormat.format(drink.timestamp)}
+                        {drinkLogFormatter.format(drink.timestamp)}
                       </TableCell>
                       <TableCell>{drink.volume}</TableCell>
                       <TableCell className="flex items-center justify-between">

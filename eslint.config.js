@@ -56,6 +56,7 @@ export default tseslint.config(
       },
     },
   },
+  // @ts-expect-error This should work but doesn't for some reason
   prettierConfig,
   {
     rules: {
