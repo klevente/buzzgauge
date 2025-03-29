@@ -192,6 +192,19 @@ function estimateTimeUntilTarget(
   return ((currentBac - targetBac) / METABOLISM_RATE) * 60 * 60 * 1000;
 }
 
+function formatDuration(ms: number): string {
+  if (ms <= 0) {
+    return "00:00";
+  }
+  const hours = Math.floor(ms / 3_600_000); // 1 hour = 3600000 ms
+  const minutes = Math.floor((ms % 3_600_000) / 60_000); // 1 minute = 60000 ms
+
+  const hoursPadded = hours.toString(10).padStart(2, "0");
+  const minutesPadded = minutes.toString(10).padStart(2, "0");
+
+  return `${hoursPadded}:${minutesPadded}`;
+}
+
 export type UserSettings = {
   gender: Gender;
   weight: number;
@@ -391,7 +404,7 @@ export default function Home({}: Route.ComponentProps) {
   );
 
   const tickFormatter = useCallback(
-    (value: number) => timeFormatter.format(new Date(value)),
+    (timeMs: number) => timeFormatter.format(new Date(timeMs)),
     [timeFormatter],
   );
 
@@ -405,9 +418,6 @@ export default function Home({}: Route.ComponentProps) {
         settings.bacLimit,
       );
 
-      // If BAC is 0 or below target, show 00:00 instead of formatting time
-      const formatTime = (ms: number) =>
-        ms <= 0 ? "00:00" : timeFormatter.format(new Date(ms));
       const formatSoberTime = (ms: number) =>
         ms <= 0
           ? soberTimeFormatter.format(new Date())
@@ -415,8 +425,8 @@ export default function Home({}: Route.ComponentProps) {
 
       return {
         isOverLimit,
-        timeUntilSober: formatTime(timeUntilSoberUnformatted),
-        timeUntilLegal: formatTime(timeUntilLegalUnformatted),
+        timeUntilSober: formatDuration(timeUntilSoberUnformatted),
+        timeUntilLegal: formatDuration(timeUntilLegalUnformatted),
         soberTime: formatSoberTime(timeUntilSoberUnformatted),
         legalTime: formatSoberTime(timeUntilLegalUnformatted),
       };
@@ -424,8 +434,8 @@ export default function Home({}: Route.ComponentProps) {
       bac,
       settings.bacLimit,
       currentTime,
-      timeFormatter,
       soberTimeFormatter,
+      formatDuration,
     ]);
 
   // Memoize chart data
